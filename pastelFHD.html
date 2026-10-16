@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الرسام الواقعي فائق الدقة - Realistic Art Studio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #0f1015;
+      color: #f4f4f5;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px;
+      margin: 0;
+      min-height: 100vh;
+    }
+    h1 {
+      margin: 4px 0 12px 0;
+      font-size: 1.4rem;
+      color: #fbbf24;
+      text-align: center;
+    }
+    .toolbar {
+      background: #1c1d24;
+      padding: 12px 18px;
+      border-radius: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 14px;
+      border: 1px solid #2e303d;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      max-width: 900px;
+    }
+    .file-label {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #111827;
+      padding: 9px 18px;
+      border-radius: 9px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.92rem;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+    }
+    .file-label:hover { filter: brightness(1.1); }
+    input[type="file"] { display: none; }
+
+    button {
+      background: #2e303d;
+      color: #ffffff;
+      border: 1px solid #434659;
+      padding: 9px 15px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: 0.2s;
+    }
+    button:hover { background: #3f4254; }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: #252730;
+      padding: 6px 12px;
+      border-radius: 9px;
+      font-size: 0.86rem;
+      border: 1px solid #343746;
+    }
+    input[type="range"] {
+      accent-color: #f59e0b;
+      cursor: pointer;
+      width: 85px;
+    }
+    select {
+      background: #1c1d24;
+      color: #fff;
+      border: 1px solid #434659;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .window-frame {
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.85);
+      border: 1px solid #52525b;
+      position: relative;
+    }
+    .window-header {
+      background: #f3f4f6;
+      color: #111827;
+      padding: 7px 14px;
+      font-size: 0.84rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      direction: ltr;
+      border-bottom: 1px solid #d1d5db;
+      user-select: none;
+    }
+    .window-controls {
+      letter-spacing: 8px;
+      color: #4b5563;
+      font-weight: bold;
+    }
+    canvas {
+      display: block;
+      background-color: #141417;
+      max-width: 92vw;
+      max-height: 72vh;
+      width: auto;
+      height: auto;
+    }
+
+    .status-bar {
+      margin-top: 12px;
+      width: 100%;
+      max-width: 580px;
+      background: #1c1d24;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid #2e303d;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .status-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      color: #e4e4e7;
+    }
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background: #2e303d;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎨 محول الصور إلى رسمة واقعية فائقة الدقة (Realistic HD Painter)</h1>
+
+  <div class="toolbar">
+    <label class="file-label" for="fileInput">📁 اختر صورة من جهازك</label>
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div class="control-group">
+      <span>🐢 السرعة:</span>
+      <input type="range" id="speedRange" min="1" max="10" value="4">
+      <span id="speedLabel">هادئة</span>
+    </div>
+
+    <div class="control-group">
+      <span>🖌️ النمط:</span>
+      <select id="styleSelect">
+        <option value="realistic" selected>رسم واقعي ناعم (فائق الوضوح)</option>
+        <option value="oil">رسم زيتي غني (Impasto)</option>
+      </select>
+    </div>
+
+    <button id="restartBtn">🔄 إعادة الرسم</button>
+    <button id="saveBtn">💾 حفظ اللوحة HD</button>
+  </div>
+
+  <div class="window-frame">
+    <div class="window-header">
+      <span>🎨 Realistic Fine-Art Painter</span>
+      <span class="window-controls">— □ ✕</span>
+    </div>
+    <canvas id="canvas" width="760" height="900"></canvas>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-text">
+      <span id="statusMsg">جاري تحضير اللوحة...</span>
+      <span id="percentMsg">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const fileInput = document.getElementById('fileInput');
+    const restartBtn = document.getElementById('restartBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const speedRange = document.getElementById('speedRange');
+    const speedLabel = document.getElementById('speedLabel');
+    const styleSelect = document.getElementById('styleSelect');
+    const statusMsg = document.getElementById('statusMsg');
+    const percentMsg = document.getElementById('percentMsg');
+    const progressFill = document.getElementById('progressFill');
+
+    let animId = null;
+    let currentSourceCanvas = null;
+
+    speedRange.addEventListener('input', () => {
+      const v = parseInt(speedRange.value);
+      if (v <= 2) speedLabel.textContent = 'بطيئة جداً';
+      else if (v <= 5) speedLabel.textContent = 'هادئة';
+      else if (v <= 8) speedLabel.textContent = 'متوسطة';
+      else speedLabel.textContent = 'سريعة';
+    });
+
+    styleSelect.addEventListener('change', () => {
+      if (currentSourceCanvas) startPainting(currentSourceCanvas);
+    });
+
+    // 1. مرشح الرسم الواقعي (Symmetric Nearest Neighbor - SNN)
+    // يحول الصورة الفوتوغرافية إلى ملمس رسم ناعم ونقي جداً مع الحفاظ على حدة الحواف 100% بدون أي تشويه
+    function createPainterlyReference(srcData, w, h, radius) {
+      const out = new Uint8ClampedArray(srcData.length);
+
+      for (let y = 0; y < h; y++) {
+        const row = y * w;
+        for (let x = 0; x < w; x++) {
+          const cIdx = (row + x) * 4;
+          const cr = srcData[cIdx];
+          const cg = srcData[cIdx + 1];
+          const cb = srcData[cIdx + 2];
+
+          let sumR = cr * 2, sumG = cg * 2, sumB = cb * 2;
+          let count = 2;
+
+          for (let dy = -radius; dy <= 0; dy++) {
+            const y1 = Math.min(h - 1, Math.max(0, y + dy));
+            const y2 = Math.min(h - 1, Math.max(0, y - dy));
+            const row1 = y1 * w;
+            const row2 = y2 * w;
+
+            for (let dx = -radius; dx <= radius; dx++) {
+              if (dy === 0 && dx <= 0) continue;
+
+              const x1 = Math.min(w - 1, Math.max(0, x + dx));
+              const x2 = Math.min(w - 1, Math.max(0, x - dx));
+
+              const idx1 = (row1 + x1) * 4;
+              const idx2 = (row2 + x2) * 4;
+
+              const r1 = srcData[idx1], g1 = srcData[idx1 + 1], b1 = srcData[idx1 + 2];
+              const r2 = srcData[idx2], g2 = srcData[idx2 + 1], b2 = srcData[idx2 + 2];
+
+              const d1 = (r1 - cr) * (r1 - cr) + (g1 - cg) * (g1 - cg) + (b1 - cb) * (b1 - cb);
+              const d2 = (r2 - cr) * (r2 - cr) + (g2 - cg) * (g2 - cg) + (b2 - cb) * (b2 - cb);
+
+              if (d1 < d2) {
+                sumR += r1; sumG += g1; sumB += b1;
+              } else {
+                sumR += r2; sumG += g2; sumB += b2;
+              }
+              count++;
+            }
+          }
+
+          // تعزيز طفيف للحيوية اللونية لتبدو كلوحة فنية مشرقة
+          let fr = sumR / count;
+          let fg = sumG / count;
+          let fb = sumB / count;
+          const avg = (fr + fg + fb) / 3;
+          const vibrance = 1.08;
+          fr = avg + (fr - avg) * vibrance;
+          fg = avg + (fg - avg) * vibrance;
+          fb = avg + (fb - avg) * vibrance;
+
+          out[cIdx]     = Math.min(255, Math.max(0, Math.round(fr)));
+          out[cIdx + 1] = Math.min(255, Math.max(0, Math.round(fg)));
+          out[cIdx + 2] = Math.min(255, Math.max(0, Math.round(fb)));
+          out[cIdx + 3] = 255;
+        }
+      }
+      return out;
+    }
+
+    // 2. حساب انسيابية الخطوط والمنحنيات لتوجيه الفرشاة بنعومة
+    function computeFlowAndEdges(data, w, h) {
+      const lum = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        const idx = i * 4;
+        lum[i] = (0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]) / 255.0;
+      }
+
+      const jxx = new Float32Array(w * h);
+      const jyy = new Float32Array(w * h);
+      const jxy = new Float32Array(w * h);
+      const edgeMag = new Float32Array(w * h);
+
+      for (let y = 1; y < h - 1; y++) {
+        const row = y * w;
+        for (let x = 1; x < w - 1; x++) {
+          const i = row + x;
+          const gx = (lum[i + 1] - lum[i - 1]) * 0.5;
+          const gy = (lum[i + w] - lum[i - w]) * 0.5;
+          jxx[i] = gx * gx;
+          jyy[i] = gy * gy;
+          jxy[i] = gx * gy;
+          edgeMag[i] = Math.sqrt(gx * gx + gy * gy);
+        }
+      }
+
+      const angles = new Float32Array(w * h);
+      const rad = 2;
+      for (let y = rad; y < h - rad; y++) {
+        for (let x = rad; x < w - rad; x++) {
+          let sxx = 0, syy = 0, sxy = 0;
+          for (let dy = -rad; dy <= rad; dy++) {
+            const rRow = (y + dy) * w + x;
+            for (let dx = -rad; dx <= rad; dx++) {
+              const ni = rRow + dx;
+              sxx += jxx[ni]; syy += jyy[ni]; sxy += jxy[ni];
+            }
+          }
+          angles[y * w + x] = 0.5 * Math.atan2(2 * sxy, sxx - syy) + Math.PI / 2;
+        }
+      }
+      return { angles, edgeMag };
+    }
+
+    // 3. رسم ضربة فرشاة واقعية ذكية تتوقف عند الحواف (Edge-Clamped Realistic Brush)
+    // تمنع تداخل الألوان أو تشويه الملامح نهائياً
+    function drawSmartBrushStroke(x, y, radius, angle, paintData, w, h, colorTolerance, alpha, isOilMode) {
+      const startIdx = (y * w + x) * 4;
+      const r0 = paintData[startIdx];
+      const g0 = paintData[startIdx + 1];
+      const b0 = paintData[startIdx + 2];
+
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      const maxLen = Math.max(2, radius * 2.2);
+
+      // تتبع مسار الفرشاة للأمام وللخلف مع التوقف الفوري إذا واجهت حافة جسم آخر
+      let forwardSteps = 0;
+      for (let s = 1; s <= maxLen; s++) {
+        const nx = Math.round(x + s * cosA);
+        const ny = Math.round(y + s * sinA);
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) break;
+        const nIdx = (ny * w + nx) * 4;
+        const diff = Math.abs(paintData[nIdx] - r0) +
+                     Math.abs(paintData[nIdx + 1] - g0) +
+                     Math.abs(paintData[nIdx + 2] - b0);
+        if (diff > colorTolerance) break;
+        forwardSteps = s;
+      }
+
+      let backwardSteps = 0;
+      for (let s = 1; s <= maxLen; s++) {
+        const nx = Math.round(x - s * cosA);
+        const ny = Math.round(y - s * sinA);
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) break;
+        const nIdx = (ny * w + nx) * 4;
+        const diff = Math.abs(paintData[nIdx] - r0) +
+                     Math.abs(paintData[nIdx + 1] - g0) +
+                     Math.abs(paintData[nIdx + 2] - b0);
+        if (diff > colorTolerance) break;
+        backwardSteps = s;
+      }
+
+      const x1 = x - backwardSteps * cosA;
+      const y1 = y - backwardSteps * sinA;
+      const x2 = x + forwardSteps * cosA;
+      const y2 = y + forwardSteps * sinA;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = alpha;
+
+      // الضربة الأساسية الناعمة
+      ctx.strokeStyle = `rgb(${r0},${g0},${b0})`;
+      ctx.lineWidth = radius * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // إضافة شعرات الفرشاة الناعمة جداً (Subtle Bristle Ridges) لإعطاء طابع الرسم اليدوي الواقعي بدون تشويه
+      if (radius >= 2.2) {
+        const perpX = -sinA * (radius * 0.45);
+        const perpY = cosA * (radius * 0.45);
+        const highlightDelta = isOilMode ? 11 : 5;
+
+        const hr = Math.min(255, r0 + highlightDelta);
+        const hg = Math.min(255, g0 + highlightDelta);
+        const hb = Math.min(255, b0 + highlightDelta);
+
+        ctx.strokeStyle = `rgb(${hr},${hg},${hb})`;
+        ctx.lineWidth = Math.max(0.8, radius * 0.45);
+        ctx.globalAlpha = alpha * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(x1 + perpX, y1 + perpY);
+        ctx.lineTo(x2 + perpX, y2 + perpY);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // 4. بناء جدول الضربات المتدرج لجميع المراحل
+    function buildStageStrokes(w, h, step, angles, edgeMag, minEdge) {
+      const list = [];
+      for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+          const jx = Math.min(w - 1, Math.max(0, Math.round(x + (Math.random() - 0.5) * step * 0.8)));
+          const jy = Math.min(h - 1, Math.max(0, Math.round(y + (Math.random() - 0.5) * step * 0.8)));
+          const idx = jy * w + jx;
+
+          if (minEdge > 0 && edgeMag[idx] < minEdge && Math.random() > 0.38) continue;
+
+          // ترتيب الضربات بشكل مجموعات مترابطة كما يرسم الفنان الحقيقي
+          const regionOrder = (Math.floor(jy / 55) * 20 + Math.floor(jx / 55)) + Math.random() * 2.8;
+          list.push({
+            x: jx,
+            y: jy,
+            ang: angles[idx],
+            order: regionOrder
+          });
+        }
+      }
+      list.sort((a, b) => a.order - b.order);
+      return list;
+    }
+
+    // 5. تشغيل عملية الرسم الواقعي التدريجي
+    function startPainting(srcCanvas) {
+      if (animId) cancelAnimationFrame(animId);
+
+      const w = srcCanvas.width;
+      const h = srcCanvas.height;
+      canvas.width = w;
+      canvas.height = h;
+
+      const sCtx = srcCanvas.getContext('2d');
+      const rawData = sCtx.getImageData(0, 0, w, h).data;
+      const isOilMode = styleSelect.value === 'oil';
+
+      // تطبيق مرشح الرسم الواقعي بدون فقدان الحواف
+      const pass1 = createPainterlyReference(rawData, w, h, isOilMode ? 3 : 2);
+      const paintData = createPainterlyReference(pass1, w, h, 1);
+
+      const { angles, edgeMag } = computeFlowAndEdges(paintData, w, h);
+
+      // تلوين خلفية القماش بلون فني دافئ وداكن
+      ctx.fillStyle = '#141418';
+      ctx.fillRect(0, 0, w, h);
+
+      // 6 مراحل متأنية للوصول إلى رسمة واقعية فائقة الدقة والنقاء
+      const STAGES = [
+        {
+          radius: 18, step: 14, tol: 95, alpha: 0.85, minEdge: 0, speed: 10,
+          label: 'المرحلة 1/6: تأسيس ألوان اللوحة والخلفيات'
+        },
+        {
+          radius: 10, step: 8,  tol: 65, alpha: 0.90, minEdge: 0, speed: 22,
+          label: 'المرحلة 2/6: تشكيل الكتل والمنحنيات الأساسية'
+        },
+        {
+          radius: 5.5, step: 5, tol: 48, alpha: 0.92, minEdge: 0, speed: 45,
+          label: 'المرحلة 3/6: نحت الملامح وتدرجات الإضاءة والظلال'
+        },
+        {
+          radius: 3.0, step: 3, tol: 35, alpha: 0.95, minEdge: 0, speed: 95,
+          label: 'المرحلة 4/6: رسم التفاصيل الدقيقة بفرشاة ناعمة'
+        },
+        {
+          radius: 1.6, step: 2, tol: 25, alpha: 0.98, minEdge: 0.012, speed: 170,
+          label: 'المرحلة 5/6: إبراز الحواف والملامح الواقعية الحادة'
+        },
+        {
+          radius: 0.9, step: 1, tol: 18, alpha: 1.0,  minEdge: 0.020, speed: 320,
+          label: 'المرحلة 6/6: الصقل الفني النهائي فائق الدقة (HD Realism)'
+        }
+      ];
+
+      // تجهيز ضربات جميع المراحل لحساب نسبة الإنجاز بدقة وسلاسة
+      const stageQueues = STAGES.map(st =>
+        buildStageStrokes(w, h, st.step, angles, edgeMag, st.minEdge)
+      );
+      const totalStrokesAll = stageQueues.reduce((acc, q) => acc + q.length, 0) || 1;
+
+      let completedStrokes = 0;
+      let curStage = 0;
+      let strokeIdx = 0;
+
+      function renderLoop() {
+        if (curStage >= STAGES.length) {
+          // لمسة قماش فنية خفيفة جداً في النهاية لإعطاء روح اللوحة المرسومة
+          applySubtleCanvasSheen(w, h, isOilMode);
+          statusMsg.textContent = '✨ اكتملت الرسمة الواقعية بأعلى دقة! يمكنك حفظها الآن.';
+          percentMsg.textContent = '100%';
+          progressFill.style.width = '100%';
+          return;
+        }
+
+        const st = STAGES[curStage];
+        const queue = stageQueues[curStage];
+
+        const userSpeed = parseInt(speedRange.value) / 4.0;
+        const batch = Math.max(1, Math.round(st.speed * userSpeed));
+
+        for (let i = 0; i < batch && strokeIdx < queue.length; i++) {
+          const item = queue[strokeIdx++];
+          drawSmartBrushStroke(
+            item.x, item.y, st.radius, item.ang,
+            paintData, w, h, st.tol, st.alpha, isOilMode
+          );
+          completedStrokes++;
+        }
+
+        const pct = Math.min(99, Math.round((completedStrokes / totalStrokesAll) * 100));
+        statusMsg.textContent = `🖌️ ${st.label}`;
+        percentMsg.textContent = `${pct}%`;
+        progressFill.style.width = `${pct}%`;
+
+        if (strokeIdx >= queue.length) {
+          curStage++;
+          strokeIdx = 0;
+        }
+
+        animId = requestAnimationFrame(renderLoop);
+      }
+
+      animId = requestAnimationFrame(renderLoop);
+    }
+
+    // لمسة إضاءة قماش اللوحة (بدون أي تغبيش أو تشويه للصورة)
+    function applySubtleCanvasSheen(w, h, isOilMode) {
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const d = imgData.data;
+      const strength = isOilMode ? 6 : 3;
+
+      for (let y = 1; y < h; y++) {
+        const row = y * w;
+        for (let x = 1; x < w; x++) {
+          const idx = (row + x) * 4;
+          // نسيج قماش كانفاس ناعم جداً ومتناسق
+          const weave = ((x % 3 === 0) && (y % 3 === 0)) ? strength : 0;
+          if (weave !== 0) {
+            d[idx]     = Math.min(255, d[idx] + weave);
+            d[idx + 1] = Math.min(255, d[idx + 1] + weave);
+            d[idx + 2] = Math.min(255, d[idx + 2] + weave);
+          }
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    // 6. رسم باقة ورد واقعية عالية الدقة كصورة افتراضية عند فتح الموقع
+    function generateRealisticBouquetHD() {
+      const w = 720, h = 860;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+
+      // خلفية بستان ناعمة ومتدرجة الإضاءة (Bokeh Background)
+      const bgGrad = g.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#162615');
+      bgGrad.addColorStop(0.6, '#1f361d');
+      bgGrad.addColorStop(1, '#0f1c0e');
+      g.fillStyle = bgGrad;
+      g.fillRect(0, 0, w, h);
+
+      const bokehColors = [
+        'rgba(120, 168, 86, 0.28)', 'rgba(72, 115, 48, 0.35)',
+        'rgba(168, 210, 125, 0.22)', 'rgba(38, 66, 27, 0.45)'
+      ];
+      for (let i = 0; i < 180; i++) {
+        g.fillStyle = bokehColors[i % bokehColors.length];
+        g.beginPath();
+        g.arc(Math.random() * w, Math.random() * h, 18 + Math.random() * 45, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      // الأكمام القماشية الزرقاء بتدرج واقعي
+      const drawRealisticSleeve = (x1, y1, x2, y2, x3, y3, x4, y4) => {
+        const sGrad = g.createLinearGradient(x1, y1, x2, y2);
+        sGrad.addColorStop(0, '#123d78');
+        sGrad.addColorStop(0.5, '#2568bd');
+        sGrad.addColorStop(1, '#4b92e8');
+        g.fillStyle = sGrad;
+        g.beginPath();
+        g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4);
+        g.closePath();
+        g.fill();
+      };
+      drawRealisticSleeve(0, h, 265, 670, 325, 750, 150, h);
+      drawRealisticSleeve(w, h, 455, 690, 400, 770, 570, h);
+
+      // غلاف الباقة الورقي الفاخر (Realistic Kraft Wrapping)
+      const wrapGrad = g.createLinearGradient(120, 220, 580, 650);
+      wrapGrad.addColorStop(0, '#4a2e21');
+      wrapGrad.addColorStop(0.5, '#2e1b12');
+      wrapGrad.addColorStop(1, '#1c100a');
+      g.fillStyle = wrapGrad;
+      g.beginPath();
+      g.moveTo(105, 300);
+      g.lineTo(255, 175);
+      g.lineTo(465, 170);
+      g.lineTo(610, 290);
+      g.lineTo(440, 675);
+      g.lineTo(295, 675);
+      g.closePath();
+      g.fill();
+
+      // ساق الباقة والشريط الحريري
+      g.fillStyle = '#24140c';
+      g.fillRect(312, 645, 98, 200);
+      g.fillStyle = '#9e6347';
+      g.fillRect(310, 715, 102, 16);
+
+      // الأيدي بتدرج بشرة طبيعي
+      const drawRealisticHand = (hx, hy, tilt) => {
+        g.save();
+        g.translate(hx, hy);
+        g.rotate(tilt);
+        const hGrad = g.createRadialGradient(-5, -5, 5, 0, 0, 38);
+        hGrad.addColorStop(0, '#f3c19d');
+        hGrad.addColorStop(0.7, '#dc9e72');
+        hGrad.addColorStop(1, '#b5784d');
+        g.fillStyle = hGrad;
+        g.beginPath();
+        g.ellipse(0, 0, 35, 26, 0, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+      };
+      drawRealisticHand(298, 695, -0.3);
+      drawRealisticHand(428, 725, 0.3);
+
+      // أوراق خضراء داخل الباقة
+      for (let i = 0; i < 45; i++) {
+        const ang = (i / 45) * Math.PI * 2;
+        const lx = 360 + Math.cos(ang) * (140 + Math.random() * 55);
+        const ly = 390 + Math.sin(ang) * (110 + Math.random() * 45);
+        g.fillStyle = i % 2 === 0 ? '#2d5422' : '#437334';
+        g.beginPath();
+        g.ellipse(lx, ly, 26, 13, ang, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      // دالة رسم وردة متعددة الطبقات والبتلات الواقعية
+      function drawLayeredRose(cx, cy, maxR, cInner, cMid, cOuter) {
+        const petals = 42;
+        for (let i = petals; i >= 1; i--) {
+          const ratio = i / petals;
+          const r = maxR * (0.2 + 0.8 * ratio);
+          const ang = i * 2.4; // الزاوية الذهبية لتوزيع بتلات الورد الطبيعي
+          const px = cx + Math.cos(ang) * (r * 0.55);
+          const py = cy + Math.sin(ang) * (r * 0.55);
+
+          const pGrad = g.createRadialGradient(px, py, 2, px, py, r * 0.55);
+          pGrad.addColorStop(0, cInner);
+          pGrad.addColorStop(0.6, cMid);
+          pGrad.addColorStop(1, cOuter);
+
+          g.fillStyle = pGrad;
+          g.beginPath();
+          g.ellipse(px, py, r * 0.52, r * 0.38, ang + Math.PI / 2, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+
+      const roses = [
+        { x: 265, y: 310, r: 62, c1: '#fff8d6', c2: '#ffd166', c3: '#e07a5f' },
+        { x: 375, y: 280, r: 66, c1: '#fae0ff', c2: '#d8b4f8', c3: '#9333ea' },
+        { x: 465, y: 330, r: 58, c1: '#ffe5ec', c2: '#ff8fa3', c3: '#c9184a' },
+        { x: 225, y: 405, r: 56, c1: '#e0f7fa', c2: '#80deea', c3: '#0288d1' },
+        { x: 330, y: 400, r: 70, c1: '#ffffff', c2: '#ffc2d1', c3: '#fb6f92' },
+        { x: 430, y: 420, r: 64, c1: '#fff9db', c2: '#ffca3a', c3: '#f77f00' },
+        { x: 505, y: 405, r: 52, c1: '#ffd6ff', c2: '#ff70a6', c3: '#9d174d' },
+        { x: 275, y: 495, r: 58, c1: '#e3f2fd', c2: '#64b5f6', c3: '#1e40af' },
+        { x: 370, y: 505, r: 64, c1: '#ffffff', c2: '#ffe5ec', c3: '#f4a261' },
+        { x: 455, y: 495, r: 55, c1: '#fce7f3', c2: '#f472b6', c3: '#831843' }
+      ];
+
+      roses.forEach(r => drawLayeredRose(r.x, r.y, r.r, r.c1, r.c2, r.c3));
+      return c;
+    }
+
+    // تحميل أي صورة من جهاز المستخدم بدقة عالية (تصل إلى 1020 بكسل)
+    function loadUserImageHD(img) {
+      const maxDim = 1020;
+      const ratio = Math.min(maxDim / img.width, maxDim / img.height);
+      const w = Math.max(240, Math.round(img.width * ratio));
+      const h = Math.max(240, Math.round(img.height * ratio));
+
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, w, h);
+
+      currentSourceCanvas = c;
+      startPainting(currentSourceCanvas);
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => loadUserImageHD(img);
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (currentSourceCanvas) startPainting(currentSourceCanvas);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'realistic-painting-hd.png';
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    });
+
+    // التشغيل التلقائي عند فتح الموقع
+    currentSourceCanvas = generateRealisticBouquetHD();
+    startPainting(currentSourceCanvas);
+  </script>
+</body>
+</html>
