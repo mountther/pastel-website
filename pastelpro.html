@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oil Pastel Painter HD - راسم الباستيل الزيتي عالي الدقة</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #121214;
+      color: #f4f4f5;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      margin: 0;
+      min-height: 100vh;
+    }
+    h1 {
+      margin: 4px 0 10px 0;
+      font-size: 1.35rem;
+      color: #fbbf24;
+    }
+    .toolbar {
+      background: #1f1f23;
+      padding: 10px 16px;
+      border-radius: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 12px;
+      border: 1px solid #3f3f46;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      max-width: 820px;
+    }
+    .file-label {
+      background: #f59e0b;
+      color: #18181b;
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.92rem;
+    }
+    .file-label:hover { background: #fbbf24; }
+    input[type="file"] { display: none; }
+
+    button {
+      background: #3f3f46;
+      color: #ffffff;
+      border: 1px solid #52525b;
+      padding: 8px 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: 0.2s;
+    }
+    button:hover { background: #52525b; }
+
+    .speed-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #27272a;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      border: 1px solid #3f3f46;
+    }
+    input[type="range"] {
+      accent-color: #f59e0b;
+      cursor: pointer;
+      width: 90px;
+    }
+
+    .window-frame {
+      background: #ffffff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 15px 45px rgba(0,0,0,0.85);
+      border: 1px solid #71717a;
+    }
+    .window-header {
+      background: #f3f4f6;
+      color: #111827;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      direction: ltr;
+      border-bottom: 1px solid #d1d5db;
+      user-select: none;
+    }
+    .window-controls {
+      letter-spacing: 8px;
+      color: #4b5563;
+      font-weight: bold;
+    }
+    canvas {
+      display: block;
+      background-color: #0b0b0c;
+      max-width: 92vw;
+      max-height: 74vh;
+      width: auto;
+      height: auto;
+    }
+    #status {
+      margin-top: 10px;
+      color: #e4e4e7;
+      font-size: 0.9rem;
+      background: #27272a;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid #3f3f46;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎨 راسم الباستيل الزيتي عالي الدقة (Oil Pastel HD)</h1>
+
+  <div class="toolbar">
+    <label class="file-label" for="fileInput">📁 اختر صورة من جهازك</label>
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div class="speed-box">
+      <span>🐢 السرعة:</span>
+      <input type="range" id="speedRange" min="1" max="10" value="4">
+      <span id="speedVal">هادئة</span>
+    </div>
+
+    <button id="restartBtn">🔄 إعادة الرسم</button>
+    <button id="saveBtn">💾 حفظ اللوحة</button>
+  </div>
+
+  <div class="window-frame">
+    <div class="window-header">
+      <span>🎨 Oil Pastel</span>
+      <span class="window-controls">— □ ✕</span>
+    </div>
+    <canvas id="canvas" width="680" height="820"></canvas>
+  </div>
+
+  <div id="status">جاري تحضير اللوحة...</div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const fileInput = document.getElementById('fileInput');
+    const restartBtn = document.getElementById('restartBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const speedRange = document.getElementById('speedRange');
+    const speedVal = document.getElementById('speedVal');
+    const statusEl = document.getElementById('status');
+
+    let animId = null;
+    let currentSourceCanvas = null;
+    let grainMap = null;
+
+    // تحديث نص السرعة
+    speedRange.addEventListener('input', () => {
+      const v = parseInt(speedRange.value);
+      if (v <= 2) speedVal.textContent = 'بطيئة جداً';
+      else if (v <= 5) speedVal.textContent = 'هادئة';
+      else if (v <= 8) speedVal.textContent = 'متوسطة';
+      else speedVal.textContent = 'سريعة';
+    });
+
+    // 1. توليد ملمس حبيبات الورق الخشن (make_grain & PAPER_TEXTURE كما في الفيديو)
+    function makeGrain(w, h) {
+      const raw = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) raw[i] = Math.random();
+
+      const grain = new Float32Array(w * h);
+      for (let y = 1; y < h - 1; y++) {
+        const row = y * w;
+        for (let x = 1; x < w - 1; x++) {
+          const idx = row + x;
+          grain[idx] = (
+            raw[idx] * 2 +
+            raw[idx - 1] + raw[idx + 1] +
+            raw[idx - w] + raw[idx + w]
+          ) / 6;
+        }
+      }
+      return grain;
+    }
+
+    // 2. تمويه سريع جداً للصورة (Fast Box/Gaussian Approximation)
+    function blurImage(src, w, h, radius) {
+      const r = Math.max(0, Math.round(radius));
+      if (r === 0) return new Float32Array(src);
+
+      const tmp = new Float32Array(src.length);
+      const out = new Float32Array(src.length);
+
+      // تمرير أفقي
+      for (let y = 0; y < h; y++) {
+        let sr = 0, sg = 0, sb = 0, cnt = 0;
+        const row = y * w;
+        for (let x = -r; x <= r; x++) {
+          const cx = Math.min(w - 1, Math.max(0, x));
+          const idx = (row + cx) * 4;
+          sr += src[idx]; sg += src[idx + 1]; sb += src[idx + 2];
+          cnt++;
+        }
+        for (let x = 0; x < w; x++) {
+          const oIdx = (row + x) * 4;
+          tmp[oIdx] = sr / cnt;
+          tmp[oIdx + 1] = sg / cnt;
+          tmp[oIdx + 2] = sb / cnt;
+
+          const leftX = Math.max(0, x - r);
+          const rightX = Math.min(w - 1, x + r + 1);
+          const lIdx = (row + leftX) * 4;
+          const rIdx = (row + rightX) * 4;
+          sr += src[rIdx] - src[lIdx];
+          sg += src[rIdx + 1] - src[lIdx + 1];
+          sb += src[rIdx + 2] - src[lIdx + 2];
+        }
+      }
+
+      // تمرير عمودي
+      for (let x = 0; x < w; x++) {
+        let sr = 0, sg = 0, sb = 0, cnt = 0;
+        for (let y = -r; y <= r; y++) {
+          const cy = Math.min(h - 1, Math.max(0, y));
+          const idx = (cy * w + x) * 4;
+          sr += tmp[idx]; sg += tmp[idx + 1]; sb += tmp[idx + 2];
+          cnt++;
+        }
+        for (let y = 0; y < h; y++) {
+          const oIdx = (y * w + x) * 4;
+          out[oIdx] = sr / cnt;
+          out[oIdx + 1] = sg / cnt;
+          out[oIdx + 2] = sb / cnt;
+
+          const topY = Math.max(0, y - r);
+          const botY = Math.min(h - 1, y + r + 1);
+          const tIdx = (topY * w + x) * 4;
+          const bIdx = (botY * w + x) * 4;
+          sr += tmp[bIdx] - tmp[tIdx];
+          sg += tmp[bIdx + 1] - tmp[tIdx + 1];
+          sb += tmp[bIdx + 2] - tmp[tIdx + 2];
+        }
+      }
+      return out;
+    }
+
+    // 3. حساب زوايا الحواف والانحناءات (معادلة الفيديو: 0.5 * arctan2(2*jxy, jxx - jyy) + pi/2)
+    function computeAngles(src, w, h) {
+      const lum = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        const idx = i * 4;
+        lum[i] = (0.299 * src[idx] + 0.587 * src[idx + 1] + 0.114 * src[idx + 2]) / 255.0;
+      }
+
+      const jxx = new Float32Array(w * h);
+      const jyy = new Float32Array(w * h);
+      const jxy = new Float32Array(w * h);
+
+      for (let y = 1; y < h - 1; y++) {
+        const row = y * w;
+        for (let x = 1; x < w - 1; x++) {
+          const i = row + x;
+          const gx = (lum[i + 1] - lum[i - 1]) * 0.5;
+          const gy = (lum[i + w] - lum[i - w]) * 0.5;
+          jxx[i] = gx * gx;
+          jyy[i] = gy * gy;
+          jxy[i] = gx * gy;
+        }
+      }
+
+      const angles = new Float32Array(w * h);
+      const rad = 2;
+      for (let y = rad; y < h - rad; y++) {
+        for (let x = rad; x < w - rad; x++) {
+          let sxx = 0, syy = 0, sxy = 0;
+          for (let dy = -rad; dy <= rad; dy++) {
+            const rRow = (y + dy) * w + x;
+            for (let dx = -rad; dx <= rad; dx++) {
+              const ni = rRow + dx;
+              sxx += jxx[ni]; syy += jyy[ni]; sxy += jxy[ni];
+            }
+          }
+          angles[y * w + x] = 0.5 * Math.atan2(2 * sxy, sxx - syy) + Math.PI / 2;
+        }
+      }
+      return angles;
+    }
+
+    // 4. رسم ضربة فرشاة الباستيل الزيتي مع الحفاظ على الحدة في الطبقات الدقيقة
+    function drawPastelStroke(x, y, radius, angle, r, g, b, w, h) {
+      // إذا كانت الفرشاة دقيقة جداً (في الطبقات الأخيرة)، نرسم ضربة مركزة عالية الوضوح
+      if (radius <= 2.2) {
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const len = radius * 2.1;
+        const steps = Math.max(3, Math.ceil(len * 2));
+        for (let i = 0; i < steps; i++) {
+          const t = (i / (steps - 1) - 0.5) * len;
+          const px = Math.round(x + t * cosA + (Math.random() - 0.5) * 0.8);
+          const py = Math.round(y + t * sinA + (Math.random() - 0.5) * 0.8);
+          if (px < 0 || px >= w || py < 0 || py >= h) continue;
+
+          const gVal = grainMap[py * w + px];
+          const shade = (gVal - 0.5) * 18;
+          const cr = Math.min(255, Math.max(0, Math.round(r + shade)));
+          const cg = Math.min(255, Math.max(0, Math.round(g + shade)));
+          const cb = Math.min(255, Math.max(0, Math.round(b + shade)));
+
+          ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+          ctx.fillRect(px - radius * 0.5, py - radius * 0.5, radius * 1.15, radius * 1.15);
+        }
+        return;
+      }
+
+      // للفرشاة العريضة والمتوسطة: ملمس شمعي خشن (Oil Pastel)
+      const len = radius * 2.1;
+      const wid = radius * 1.05;
+      const angJitter = angle + (Math.random() - 0.5) * 0.22;
+      const cosA = Math.cos(angJitter);
+      const sinA = Math.sin(angJitter);
+
+      const dabs = Math.max(8, Math.floor(radius * 1.65));
+      for (let i = 0; i < dabs; i++) {
+        const lx = (Math.random() - 0.5) * len;
+        const ly = (Math.random() - 0.5) * wid;
+        const px = Math.round(x + lx * cosA - ly * sinA);
+        const py = Math.round(y + lx * sinA + ly * cosA);
+
+        if (px < 0 || px >= w || py < 0 || py >= h) continue;
+
+        const gVal = grainMap[py * w + px];
+        if (gVal < 0.20 && Math.random() < 0.45) continue;
+
+        const shade = (gVal - 0.5) * 24;
+        const cr = Math.min(255, Math.max(0, Math.round(r + shade)));
+        const cg = Math.min(255, Math.max(0, Math.round(g + shade)));
+        const cb = Math.min(255, Math.max(0, Math.round(b + shade)));
+
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},0.92)`;
+        ctx.beginPath();
+        const dabR = Math.max(1.0, radius * (0.24 + Math.random() * 0.3));
+        ctx.arc(px, py, dabR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 5. توليد ضربات الطبقة بناءً على الفرق اللوني (err & percentile 92 كما في الفيديو)
+    function buildLayerStrokes(origData, blurredData, prevColData, angles, w, h, layer, isFirstLayer) {
+      const strokes = [];
+      const step = Math.max(2, Math.floor(layer.step));
+
+      // حساب مصفوفة الخطأ اللوني err بين الطبقة الحالية والسابقة
+      const errArr = new Float32Array(w * h);
+      const sampleErrors = [];
+
+      for (let y = 0; y < h; y += step) {
+        const row = y * w;
+        for (let x = 0; x < w; x += step) {
+          const idx = (row + x) * 4;
+          let e = 0;
+          if (isFirstLayer) {
+            // في الطبقة الأولى نقيس البروز اللوني عن الخلفية الداكنة
+            e = Math.max(blurredData[idx], blurredData[idx + 1], blurredData[idx + 2]);
+          } else {
+            e = Math.max(
+              Math.abs(blurredData[idx] - prevColData[idx]),
+              Math.abs(blurredData[idx + 1] - prevColData[idx + 1]),
+              Math.abs(blurredData[idx + 2] - prevColData[idx + 2])
+            );
+          }
+          errArr[row + x] = e;
+          sampleErrors.push(e);
+        }
+      }
+
+      // حساب المئين 92 (np.percentile(err, 92)) كما في كود الفيديو بالضبط
+      sampleErrors.sort((a, b) => a - b);
+      const p92 = sampleErrors[Math.floor(sampleErrors.length * 0.92)] || 1;
+
+      for (let y = step; y < h - step; y += step) {
+        for (let x = step; x < w - step; x += step) {
+          const jx = Math.min(w - 1, Math.max(0, Math.round(x + (Math.random() - 0.5) * step)));
+          const jy = Math.min(h - 1, Math.max(0, Math.round(y + (Math.random() - 0.5) * step)));
+
+          const normErr = Math.min(1, errArr[y * w + x] / (p92 + 1e-4));
+
+          // كلما زاد الفرق اللوني في المنطقة (مثل تفاصيل الورد والأصابع)، زادت كثافة الضربات
+          if (isFirstLayer || normErr > layer.threshold || Math.random() < normErr * 0.65) {
+            const pIdx = (jy * w + jx) * 4;
+            const r = blurredData[pIdx];
+            const g = blurredData[pIdx + 1];
+            const b = blurredData[pIdx + 2];
+
+            // تحديث الذاكرة اللونية
+            prevColData[pIdx] = r;
+            prevColData[pIdx + 1] = g;
+            prevColData[pIdx + 2] = b;
+
+            // ترتيب الضربات في مجموعات متقاربة (Organic Clusters) ليبدو الرسم طبيعياً مثل الفيديو
+            const clusterKey = (Math.floor(jy / 45) * 20 + Math.floor(jx / 45)) + (Math.random() * 3.5);
+            strokes.push({
+              x: jx,
+              y: jy,
+              r: layer.radius,
+              ang: angles[jy * w + jx],
+              cr: r, cg: g, cb: b,
+              key: clusterKey
+            });
+          }
+        }
+      }
+
+      // خلط ناعم للضربات لتظهر بشكل متدرج وجميل على الشاشة
+      strokes.sort((a, b) => a.key - b.key);
+      return strokes;
+    }
+
+    // 6. بدء عملية الرسم التدريجي
+    function startPaintingFromCanvas(srcCanvas) {
+      if (animId) cancelAnimationFrame(animId);
+
+      const w = srcCanvas.width;
+      const h = srcCanvas.height;
+      canvas.width = w;
+      canvas.height = h;
+
+      const sCtx = srcCanvas.getContext('2d');
+      const origData = sCtx.getImageData(0, 0, w, h).data;
+
+      grainMap = makeGrain(w, h);
+      const angles = computeAngles(origData, w, h);
+      const prevColData = new Float32Array(origData.length);
+
+      // خلفية الورق السوداء الفحمية كما في بداية الفيديو
+      ctx.fillStyle = '#0c0c0e';
+      ctx.fillRect(0, 0, w, h);
+
+      // 7 طبقات متدرجة من الضربات الكبيرة إلى التفاصيل المجهرية فائقة الوضوح
+      const LAYERS = [
+        { radius: 24, step: 15, blur: 7, threshold: 0.08, baseSpeed: 3,  label: 'الطبقة 1/7: تأسيس الخلفية والكتل العريضة' },
+        { radius: 15, step: 10, blur: 4, threshold: 0.14, baseSpeed: 7,  label: 'الطبقة 2/7: بناء ألوان اللوحة الأساسية' },
+        { radius: 9.5, step: 6, blur: 2, threshold: 0.16, baseSpeed: 15, label: 'الطبقة 3/7: تشكيل الملامح والأوراق' },
+        { radius: 5.5, step: 4, blur: 1, threshold: 0.15, baseSpeed: 28, label: 'الطبقة 4/7: رسم تفاصيل الورود والظلال' },
+        { radius: 3.2, step: 3, blur: 0, threshold: 0.12, baseSpeed: 55, label: 'الطبقة 5/7: إبراز الحواف الدقيقة' },
+        { radius: 1.8, step: 2, blur: 0, threshold: 0.09, baseSpeed: 95, label: 'الطبقة 6/7: تنعيم وتوضيح ملامح الصورة' },
+        { radius: 1.0, step: 2, blur: 0, threshold: 0.06, baseSpeed: 140, label: 'الطبقة 7/7: اللمسات النهائية فائقة الدقة (HD)' }
+      ];
+
+      let currentLayerIdx = 0;
+      let currentStrokes = [];
+      let strokePtr = 0;
+
+      function prepareNextLayer() {
+        if (currentLayerIdx >= LAYERS.length) return false;
+        const layer = LAYERS[currentLayerIdx];
+        const blurred = blurImage(origData, w, h, layer.blur);
+        currentStrokes = buildLayerStrokes(
+          origData, blurred, prevColData, angles, w, h, layer, currentLayerIdx === 0
+        );
+        strokePtr = 0;
+        return true;
+      }
+
+      prepareNextLayer();
+
+      function animate() {
+        if (currentLayerIdx >= LAYERS.length) {
+          statusEl.textContent = '✨ اكتملت اللوحة بأعلى دقة! يمكنك حفظها أو اختيار صورة أخرى.';
+          return;
+        }
+
+        const layer = LAYERS[currentLayerIdx];
+        const speedFactor = parseInt(speedRange.value) / 4.0; // يتحكم به المستخدم
+        const countThisFrame = Math.max(1, Math.round(layer.baseSpeed * speedFactor));
+
+        for (let i = 0; i < countThisFrame && strokePtr < currentStrokes.length; i++) {
+          const st = currentStrokes[strokePtr++];
+          drawPastelStroke(st.x, st.y, st.r, st.ang, st.cr, st.cg, st.cb, w, h);
+        }
+
+        const progress = Math.min(100, Math.round((strokePtr / (currentStrokes.length || 1)) * 100));
+        statusEl.textContent = `🖌️ ${layer.label} (${progress}%)`;
+
+        if (strokePtr >= currentStrokes.length) {
+          currentLayerIdx++;
+          prepareNextLayer();
+        }
+
+        animId = requestAnimationFrame(animate);
+      }
+
+      animId = requestAnimationFrame(animate);
+    }
+
+    // باقة ورد افتراضية عالية التفاصيل (مطابقة لباقة الفيديو)
+    function createHighDetailBouquet() {
+      const w = 640, h = 780;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+
+      // 1. خلفية أوراق الشجر المتدرجة
+      g.fillStyle = '#162910';
+      g.fillRect(0, 0, w, h);
+      const leafColors = ['#0f1f0a', '#1e3814', '#2d4f1e', '#436e2c', '#5e8c3e', '#7da856', '#9bc472'];
+      for (let i = 0; i < 950; i++) {
+        g.fillStyle = leafColors[i % leafColors.length];
+        g.beginPath();
+        g.ellipse(
+          Math.random() * w, Math.random() * h,
+          10 + Math.random() * 26, 6 + Math.random() * 15,
+          Math.random() * Math.PI, 0, Math.PI * 2
+        );
+        g.fill();
+      }
+
+      // 2. الأكمام الزرقاء بتفاصيل القماش والظلال
+      const drawSleeve = (x1, y1, x2, y2, x3, y3, x4, y4) => {
+        g.fillStyle = '#1b5eb0';
+        g.beginPath();
+        g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4);
+        g.closePath(); g.fill();
+      };
+      drawSleeve(0, h, 235, 610, 290, 685, 130, h);
+      drawSleeve(w, h, 405, 630, 355, 705, 510, h);
+
+      for (let i = 0; i < 160; i++) {
+        const isLeft = i < 80;
+        const sx = isLeft ? 30 + Math.random() * 220 : 390 + Math.random() * 220;
+        const sy = 625 + Math.random() * 155;
+        g.fillStyle = i % 3 === 0 ? '#5ca8ff' : (i % 2 === 0 ? '#2b7de0' : '#123e7a');
+        g.beginPath();
+        g.ellipse(sx, sy, 12 + Math.random() * 14, 5 + Math.random() * 8, isLeft ? -0.5 : 0.5, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      // 3. غلاف الباقة البني الداكن (Kraft Paper)
+      g.fillStyle = '#26150e';
+      g.beginPath();
+      g.moveTo(95, 280);
+      g.lineTo(230, 165);
+      g.lineTo(415, 160);
+      g.lineTo(545, 265);
+      g.lineTo(395, 610);
+      g.lineTo(265, 610);
+      g.closePath();
+      g.fill();
+
+      // ثنيات وظلال ورق التغليف
+      const wrapShades = ['#1c0f0a', '#362016', '#4a2c1f', '#5c3828', '#2b1810'];
+      for (let i = 0; i < 220; i++) {
+        const wx = 130 + Math.random() * 380;
+        const wy = 190 + Math.random() * 400;
+        if (Math.abs(wx - 325) < (640 - wy) * 0.54) {
+          g.fillStyle = wrapShades[i % wrapShades.length];
+          g.beginPath();
+          g.ellipse(wx, wy, 16 + Math.random() * 24, 7 + Math.random() * 14, Math.random() * Math.PI, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+
+      // ساق الباقة والشريط
+      g.fillStyle = '#21110b';
+      g.fillRect(280, 580, 88, 185);
+      g.fillStyle = '#8c5840';
+      g.fillRect(278, 650, 92, 12);
+
+      // الأيدي والأصابع التي تمسك الباقة
+      const drawHand = (hx, hy, tilt) => {
+        g.fillStyle = '#dfa376';
+        g.beginPath(); g.ellipse(hx, hy, 32, 24, tilt, 0, Math.PI * 2); g.fill();
+        for (let f = -1; f <= 1; f++) {
+          g.fillStyle = f === 0 ? '#eab388' : '#c98a5d';
+          g.beginPath(); g.ellipse(hx + f * 8, hy + f * 7, 16, 8, tilt * 0.5, 0, Math.PI * 2); g.fill();
+        }
+      };
+      drawHand(265, 630, -0.35);
+      drawHand(382, 658, 0.35);
+
+      // 4. ورود الباقة الملونة بتفاصيل البتلات الدقيقة
+      const flowers = [
+        { x: 245, y: 285, r: 50, cols: ['#fff3b0', '#ffd166', '#f4a261', '#e76f51'] },
+        { x: 335, y: 255, r: 54, cols: ['#f3c4fb', '#e2afff', '#c8b6ff', '#9d4edd'] },
+        { x: 415, y: 295, r: 48, cols: ['#ffccd5', '#ff8fa3', '#ff4d6d', '#c9184a'] },
+        { x: 200, y: 365, r: 45, cols: ['#caf0f8', '#90e0ef', '#48cae4', '#0077b6'] },
+        { x: 290, y: 370, r: 58, cols: ['#ffffff', '#ffe5ec', '#ffb3c6', '#fb6f92'] },
+        { x: 380, y: 380, r: 52, cols: ['#fdffb6', '#ffd166', '#fca311', '#e85d04'] },
+        { x: 455, y: 370, r: 42, cols: ['#ffc6ff', '#ffadad', '#ff6b8b', '#a4133c'] },
+        { x: 250, y: 450, r: 48, cols: ['#bde0fe', '#a2d2ff', '#4895ef', '#3f37c9'] },
+        { x: 335, y: 460, r: 54, cols: ['#ffffff', '#fff0f3', '#ffccd5', '#ffb703'] },
+        { x: 410, y: 450, r: 46, cols: ['#ffc8dd', '#ffafcc', '#f72585', '#7209b7'] }
+      ];
+
+      flowers.forEach(fl => {
+        for (let p = 0; p < 55; p++) {
+          const ang = (p / 55) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+          const dist = Math.pow(Math.random(), 0.7) * fl.r;
+          const px = fl.x + Math.cos(ang) * dist;
+          const py = fl.y + Math.sin(ang) * dist;
+          const cIdx = Math.min(fl.cols.length - 1, Math.floor((dist / fl.r) * fl.cols.length));
+          g.fillStyle = fl.cols[cIdx];
+          g.beginPath();
+          g.ellipse(px, py, 8 + Math.random() * 12, 5 + Math.random() * 8, ang + Math.PI / 4, 0, Math.PI * 2);
+          g.fill();
+        }
+        // مركز الوردة الدقيق
+        g.fillStyle = '#ffb703';
+        g.beginPath(); g.arc(fl.x, fl.y, 6, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#fb8500';
+        g.beginPath(); g.arc(fl.x + 2, fl.y - 1, 3, 0, Math.PI * 2); g.fill();
+      });
+
+      return c;
+    }
+
+    // تحميل أي صورة يرفعها المستخدم بدقة عالية (تصل إلى 720×880 بكسل)
+    function processUserImage(img) {
+      const maxW = 720, maxH = 880;
+      const ratio = Math.min(maxW / img.width, maxH / img.height);
+      const w = Math.max(200, Math.round(img.width * ratio));
+      const h = Math.max(200, Math.round(img.height * ratio));
+
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, w, h);
+
+      currentSourceCanvas = c;
+      startPaintingFromCanvas(currentSourceCanvas);
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => processUserImage(img);
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (currentSourceCanvas) startPaintingFromCanvas(currentSourceCanvas);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'oil-pastel-painting.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // التشغيل التلقائي عند فتح الموقع
+    currentSourceCanvas = createHighDetailBouquet();
+    startPaintingFromCanvas(currentSourceCanvas);
+  </script>
+</body>
+</html>
